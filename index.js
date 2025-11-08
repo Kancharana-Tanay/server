@@ -50,6 +50,20 @@ app.get('/', (req, res) => {
   res.json({ status: 'API is running' });
 });
 
+// Redirect any non-API requests to the client site in production to avoid 404 noise
+if (process.env.NODE_ENV === 'production') {
+  const clientUrl = process.env.CLIENT_URL || 'https://maytastic.com';
+  app.use((req, res, next) => {
+    // If the request path starts with /api, let API routes handle it
+    if (req.path.startsWith('/api')) return next();
+
+    // Otherwise redirect to client (preserve path and query)
+    const target = `${clientUrl}${req.originalUrl}`;
+    console.info('Redirecting non-API request to client:', req.originalUrl, '->', target);
+    return res.redirect(302, target);
+  });
+}
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
