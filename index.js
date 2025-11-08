@@ -12,10 +12,27 @@ dotenv.config();
 const app = express();
 
 // Middleware
-const allowed = ["https://maytastic.com", "https://www.maytastic.com"];
+// Allowlist of origins can be configured via ALLOWED_ORIGINS env var (comma-separated)
+const allowed = (process.env.ALLOWED_ORIGINS && process.env.ALLOWED_ORIGINS.split(',')) || [
+  'https://maytastic.com',
+  'https://www.maytastic.com'
+];
+
 app.use(cors({
-  origin: (origin, cb) => (!origin || allowed.includes(origin)) ? cb(null, true) : cb(new Error("CORS")),
-  credentials: true
+  origin: (origin, cb) => {
+    // If no origin (e.g., server-to-server, curl, mobile apps), allow
+    if (!origin) return cb(null, true);
+
+    // If origin is allowed, allow it
+    if (allowed.includes(origin)) return cb(null, true);
+
+    // Not allowed: do NOT throw an error (that surfaces server-side); instead deny CORS
+    // Log for debugging and return callback with false so the CORS middleware will not set CORS headers
+    console.warn('Blocked CORS origin:', origin);
+    return cb(null, false);
+  },
+  credentials: true,
+  optionsSuccessStatus: 200
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
